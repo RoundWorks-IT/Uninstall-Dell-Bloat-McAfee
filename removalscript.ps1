@@ -179,7 +179,7 @@ if ($mcafeePresent) {
     # 1. Legacy McAfee cleanup tool
     try {
         Write-Output "Downloading legacy McAfee cleanup tool..."
-        $urlLegacy      = 'https://github.com'
+        $urlLegacy      = 'https://github.com/RoundWorks-IT/Uninstall-Dell-Bloat-McAfee/blob/main/mcafeeclean.zip'
         $destLegacyZip  = "$DebloatFolder\mcafee.zip"
         Invoke-WebRequest -Uri $urlLegacy -OutFile $destLegacyZip -Method Get
 
@@ -194,7 +194,7 @@ if ($mcafeePresent) {
     # 2. New McAfee cleanup tool
     try {
         Write-Output "Downloading new McAfee cleanup tool..."
-        $urlNew      = 'https://github.com'
+        $urlNew      = 'https://github.com/RoundWorks-IT/Uninstall-Dell-Bloat-McAfee/blob/main/mcafeeclean.zip'
         $destNewZip  = "$DebloatFolder\mcafeenew.zip"
         Invoke-WebRequest -Uri $urlNew -OutFile $destNewZip -Method Get
 
