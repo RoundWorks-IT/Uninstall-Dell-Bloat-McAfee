@@ -62,23 +62,84 @@ function Invoke-UninstallString {
 
     if (-not $cmd) { return }
 
-    # MSI uninstall – keep special handling
+    $cmd = $cmd.Trim()
+    if (-not $cmd) { return }
+
+    # -----------------------------
+    # MSI uninstall – use msiexec
+    # -----------------------------
     if ($cmd -match 'msiexec(\.exe)?') {
         # Strip "msiexec.exe" or "msiexec"
         $args = $cmd -replace 'msiexec(\.exe)?\s*', ''
-        if ($args -match '/I') { $args = $args -replace '/I', '/X' }
-        if ($args -notmatch '/quiet')    { $args += ' /quiet' }
-        if ($args -notmatch '/norestart'){ $args += ' /norestart' }
+
+        # Ensure we're uninstalling, not installing
+        if ($args -match '/I') {
+            $args = $args -replace '/I', '/X'
+        }
+
+        if ($args -notmatch '/quiet')     { $args += ' /quiet' }
+        if ($args -notmatch '/norestart') { $args += ' /norestart' }
 
         Write-Output "  -> MSI uninstall: msiexec.exe $args"
         Start-Process -FilePath "msiexec.exe" -ArgumentList $args -Wait -NoNewWindow
         return
     }
 
-    # NON-MSI: just hand the whole thing to cmd.exe so all quoting stays intact
-    Write-Output "  -> EXE uninstall (via cmd.exe): $cmd"
-    Start-Process -FilePath "cmd.exe" -ArgumentList "/c $cmd" -Wait -NoNewWindow
+    # ----------------------------------------
+    # NON-MSI: parse EXE + arguments properly
+    # ----------------------------------------
+    $exe  = $null
+    $args = ""
+
+    $trimmed = $cmd.Trim()
+
+    if ($trimmed.StartsWith('"')) {
+        # Format: "C:\Path With Spaces\app.exe" /arg1 /arg2
+        $secondQuoteIndex = $trimmed.IndexOf('"', 1)
+        if ($secondQuoteIndex -lt 0) {
+            # Only one quote – treat everything (minus quotes) as exe
+            $exe = $trimmed.Trim('"')
+        }
+        else {
+            $exe = $trimmed.Substring(1, $secondQuoteIndex - 1)
+            if ($trimmed.Length -gt $secondQuoteIndex + 1) {
+                $args = $trimmed.Substring($secondQuoteIndex + 1).Trim()
+            }
+        }
+    }
+    else {
+        # Format: C:\Program Files\Vendor\App\uninstall.exe /arg1 /arg2
+        $firstSpace = $trimmed.IndexOf(' ')
+        if ($firstSpace -lt 0) {
+            $exe = $trimmed
+        }
+        else {
+            $exe  = $trimmed.Substring(0, $firstSpace)
+            $args = $trimmed.Substring($firstSpace + 1).Trim()
+        }
+    }
+
+    if (-not $exe) {
+        Write-Output "  -> Unable to parse uninstall command: $cmd"
+        return
+    }
+
+    Write-Output "  -> EXE uninstall: `"$exe`" $args"
+
+    try {
+        if ([string]::IsNullOrWhiteSpace($args)) {
+            Start-Process -FilePath $exe -Wait -NoNewWindow
+        }
+        else {
+            Start-Process -FilePath $exe -ArgumentList $args -Wait -NoNewWindow
+        }
+    }
+    catch {
+        Write-Output "  -> Failed to start uninstall process for `"$exe`": $_"
+        throw
+    }
 }
+
 
 
 # -------------------------------------------------------------------
